@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import Add from '../assets/Add.svg';
 import {
   responsiveHeight,
@@ -20,6 +20,7 @@ import CustomBtn from '../components/CustomBtn';
 import Card from '../components/Card';
 import RectangleBtn from '../components/RectangleBtn';
 import {colors} from '../utils/theme';
+import {MMKV} from 'react-native-mmkv';
 
 const ListEmpty = () => {
   return (
@@ -69,6 +70,32 @@ const Home = () => {
   const [editTitle, setEditTitle] = useState('');
   const [editSubtitle, setEditSubtitle] = useState('');
   const [delteItem, setDelteItem] = useState(null);
+
+  const storage = new MMKV();
+
+  useEffect(() => {
+    // Load data from MMKV on component mount
+    loadData();
+  }, []);
+
+  const loadData = () => {
+    const jsonUser = storage.getString('todoListData');
+    try {
+      const storedData = JSON.parse(jsonUser);
+      if (storedData) {
+        setData(storedData);
+      }
+    } catch (error) {
+      console.error('Error parsing JSON data:', error);
+      // Handle the error or set default data as needed
+    }
+  };
+  
+
+  const saveData = newData => {
+    storage.set('todoListData', JSON.stringify(newData));
+  };
+
   const handleExpandToggle = useCallback(
     cardId => {
       if (expandedCards.includes(cardId)) {
@@ -87,7 +114,9 @@ const Home = () => {
         title: title,
         subtitle: subtitle,
       };
-      setData([...data, newItem]);
+      const newData = [...data, newItem];
+      setData(newData);
+      saveData(newData);
       setTitle('');
       setSubtitle('');
     } else {
@@ -102,13 +131,14 @@ const Home = () => {
           : item,
       );
       setData(updatedData);
+      saveData(updatedData); // 
       setEditingItem(null);
       setTitle('');
       setSubtitle('');
       setIsModalVisible(false);
-    }else {
-        Alert.alert('Please Fill All Fields');
-      }
+    } else {
+      Alert.alert('Please Fill All Fields');
+    }
   };
 
   const handleEditItem = item => {
@@ -120,7 +150,9 @@ const Home = () => {
 
   const handleDelete = id => {
     if (delteItem) {
-      setData(data.filter(item => item.id !== delteItem.id));
+      const updatedData = data.filter((item) => item.id !== delteItem.id);
+      setData(updatedData);
+      saveData(updatedData);
       setEditingItem(null);
       setIsdeleteModelVisible(false);
     }
@@ -132,7 +164,6 @@ const Home = () => {
       title={item.title}
       subtitle={item.subtitle}
       iconSource={item.iconSource}
-      onPress={() => handleTaskPress(item.id)}
       isExpanded={expandedCards.includes(item.id)}
       onExpandToggle={() => handleExpandToggle(item.id)}
       deletePress={() => {
@@ -144,11 +175,6 @@ const Home = () => {
       }}
     />
   );
-
-  const handleTaskPress = taskId => {
-    // Handle task press action here
-    console.log('Task pressed: ', taskId);
-  };
 
   const showModal = () => {
     setIsModalVisible(true);
